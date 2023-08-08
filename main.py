@@ -1,14 +1,29 @@
 from fastapi import FastAPI, HTTPException
 import firebase_admin
-
+from datetime import date, time, datetime
+from fastapi.middleware.cors import CORSMiddleware
 from firebase_admin import firestore, credentials
 from pydantic import BaseModel
 from typing import List
+# import datetime
+from datetime import datetime
 
-cred = credentials.Certificate("/Users/nguyennhatle/PycharmProjects/my-project/credentials.json")
+cred = credentials.Certificate("/Users/nguyennhatle/PycharmProjects/my-project2/credentials.json")
 firebase_admin.initialize_app(cred)
 
 app = FastAPI()
+
+origins = [
+    "http://localhost:3000"
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 class User(BaseModel):
@@ -16,14 +31,19 @@ class User(BaseModel):
     password: str
     username: str
     id_post: List[str]
+    # author: False
+
 
 class Post(BaseModel):
     categories: List[str]
     content: str
+    date_created: datetime
+    id_author: str
+    likes: int
+    title: str
 
 
-
-@app.post("/signup")
+@app.post("/Signup")
 def create_user(user_data: User):
     db = firestore.client()
     try:
@@ -34,32 +54,46 @@ def create_user(user_data: User):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# @app.post("/users")
-# def create_user(user_data: Item):
-#     db = firestore.client()
-#     # return {"message": "success"}
-#     try:
-#         new_user = db.collection('users').document(user_data.name)
-#         new_user.set({"name": user_data.name, "age": user_data.age})
-#         # new_user.set({"name": "John Doe"})
-#         return {"message": "User created successfully"}
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=str(e))
-#
-#
-# @app.get("/average")
-# def get_average():
-#     db = firestore.client()
-#     sum_age = 0
-#     total_users = 0
-#     try:
-#         all_users = db.collection('users').stream()
-#         for user_doc in all_users:
-#             user_data = user_doc.to_dict()
-#             sum_age += user_data['age']
-#             total_users += 1
-#         return {"average": sum_age/total_users}
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=str(e))
+@app.post("/setPost")
+def set_post(post_info: Post):
+    db = firestore.client()
+    try:
+        new_post = db.collection('post').document()
+        new_post.set({"content": post_info.content, "date_created": post_info.date_created,
+                      "id_author": post_info.id_author, "likes": post_info.likes, "title": post_info.title})
+        return {"message": "Post created successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/getAllPost")
+def get_all_post():
+    db = firestore.client()
+    try:
+        all_posts = []
+        docs = db.collection('post').stream()
+        for doc in docs:
+            data = doc.to_dict()
+            data['id_author'] = doc.get("id_author").id
+            data['categories'] = [category_ref.id for category_ref in doc.get("categories")]
+            # data['date_created'] = datetime.datetime.fromtimestamp(doc.get('date_created').timestamp())
+            nanoseconds_datetime = data['date_created']
+
+            # Convert to standard Python datetime object
+            standard_datetime = datetime(
+                year=nanoseconds_datetime.year,
+                month=nanoseconds_datetime.month,
+                day=nanoseconds_datetime.day,
+                hour=nanoseconds_datetime.hour,
+                minute=nanoseconds_datetime.minute,
+                second=nanoseconds_datetime.second,
+                microsecond=nanoseconds_datetime.nanosecond // 1000,
+
+            )
+            data['date_created'] = standard_datetime
+            print(data)
+            all_posts.append(data)
+        print(all_posts)
+        return all_posts
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
