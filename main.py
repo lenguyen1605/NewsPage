@@ -2,9 +2,13 @@ from fastapi import FastAPI, HTTPException
 import firebase_admin
 from datetime import date, time, datetime
 from fastapi.middleware.cors import CORSMiddleware
+from datetime import date, time, datetime
+from fastapi.middleware.cors import CORSMiddleware
 from firebase_admin import firestore, credentials
 from pydantic import BaseModel
 from typing import List
+# import datetime
+from datetime import datetime
 
 cred = credentials.Certificate("./credentials.json")
 firebase_admin.initialize_app(cred)
@@ -68,7 +72,30 @@ def set_post(post_info: Post):
 def get_all_post():
     db = firestore.client()
     try:
+        all_posts = []
         docs = db.collection('post').stream()
-        return docs
+        for doc in docs:
+            data = doc.to_dict()
+            data['id_author'] = doc.get("id_author").id
+            data['categories'] = [category_ref.id for category_ref in doc.get("categories")]
+            # data['date_created'] = datetime.datetime.fromtimestamp(doc.get('date_created').timestamp())
+            nanoseconds_datetime = data['date_created']
+
+            # Convert to standard Python datetime object
+            standard_datetime = datetime(
+                year=nanoseconds_datetime.year,
+                month=nanoseconds_datetime.month,
+                day=nanoseconds_datetime.day,
+                hour=nanoseconds_datetime.hour,
+                minute=nanoseconds_datetime.minute,
+                second=nanoseconds_datetime.second,
+                microsecond=nanoseconds_datetime.nanosecond // 1000,
+
+            )
+            data['date_created'] = standard_datetime
+            print(data)
+            all_posts.append(data)
+        print(all_posts)
+        return all_posts
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
