@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from typing import List
 # import datetime
 from datetime import datetime
-
+import uuid
 cred = credentials.Certificate("/Users/nguyennhatle/PycharmProjects/my-project2/credentials.json")
 firebase_admin.initialize_app(cred)
 
@@ -37,10 +37,12 @@ class User(BaseModel):
 class Post(BaseModel):
     categories: List[str]
     content: str
-    date_created: datetime
-    id_author: str
+    # date_created: datetime
+    # id_author: str
+    image: str
     likes: int
     title: str
+    summary: str
 
 
 @app.post("/Signup")
@@ -58,9 +60,21 @@ def create_user(user_data: User):
 def set_post(post_info: Post):
     db = firestore.client()
     try:
-        new_post = db.collection('post').document()
-        new_post.set({"content": post_info.content, "date_created": post_info.date_created,
-                      "id_author": post_info.id_author, "likes": post_info.likes, "title": post_info.title})
+        random_id = uuid.uuid4()
+        new_post = db.collection('post').document(str(random_id))
+        doc_categories = [db.collection('categories').document(category) for category in post_info.categories]
+        print(doc_categories)
+
+        new_post.set({"content": post_info.content, "date_created": datetime.now(),
+                      "id_author": db.collection('users').document('le'), "likes": post_info.likes,
+                      "title": post_info.title, "image": post_info.image,
+                      "summary": post_info.summary, "categories": doc_categories, "id": str(random_id)})
+        for category in post_info.categories:
+            cat_ref = db.collection('categories').document(category)
+            new_post_list = cat_ref.get().get("posts")
+            new_post_list.append(db.collection('post').document(str(random_id)))
+            cat_ref.update({"posts": new_post_list})
+
         return {"message": "Post created successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -91,9 +105,11 @@ def get_all_post():
 
             )
             data['date_created'] = standard_datetime
-            print(data)
+            author_name = db.collection('users').document(doc.get('id_author').id)
+            data['author_name'] = author_name.get().get("username")
+            # print(data)
             all_posts.append(data)
-        print(all_posts)
+        # print(all_posts)
         return all_posts
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
