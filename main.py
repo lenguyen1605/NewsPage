@@ -80,7 +80,7 @@ def get_all_post():
             data['categories'] = [category_ref.id for category_ref in doc.get("categories")]
             # data['date_created'] = datetime.datetime.fromtimestamp(doc.get('date_created').timestamp())
             nanoseconds_datetime = data['date_created']
-
+            
             # Convert to standard Python datetime object
             standard_datetime = datetime(
                 year=nanoseconds_datetime.year,
@@ -93,9 +93,46 @@ def get_all_post():
 
             )
             data['date_created'] = standard_datetime
+            author_name = db.collection('users').document(doc.get('id_author').id)
+            data['author_name'] = author_name.get().get("username")
             print(data)
             all_posts.append(data)
         print(all_posts)
         return all_posts
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@app.get("/getPostbyID")
+def get_post_by_id(id):
+    db = firestore.client()
+    try:
+        this_post = []
+        post_ref = db.collection('post').document(id)
+        post = post_ref.get().to_dict()
+        post['id_author'] = post_ref.get().get("id_author").id
+        post['categories'] = [category_ref.id for category_ref in post_ref.get().get("categories")]
+
+        nanoseconds_datetime = post['date_created']
+            
+        # Convert to standard Python datetime object
+        standard_datetime = datetime(
+            year=nanoseconds_datetime.year,
+            month=nanoseconds_datetime.month,
+            day=nanoseconds_datetime.day,
+            hour=nanoseconds_datetime.hour,
+            minute=nanoseconds_datetime.minute,
+            second=nanoseconds_datetime.second,
+            microsecond=nanoseconds_datetime.nanosecond // 1000,
+
+        )
+        post['date_created'] = standard_datetime
+        author_name = db.collection('users').document(post_ref.get().get('id_author').id)
+
+        post['author_name'] = author_name.get().get("username")
+
+        print(post)
+        # this_post.append(post)
+        print(this_post)
+        return post
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
