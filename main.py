@@ -10,6 +10,7 @@ from typing import List
 # import datetime
 from datetime import datetime
 import uuid
+
 cred = credentials.Certificate("./credentials.json")
 firebase_admin.initialize_app(cred)
 
@@ -94,7 +95,7 @@ def get_all_post():
             data['categories'] = [category_ref.id for category_ref in doc.get("categories")]
             # data['date_created'] = datetime.datetime.fromtimestamp(doc.get('date_created').timestamp())
             nanoseconds_datetime = data['date_created']
-            
+
             # Convert to standard Python datetime object
             standard_datetime = datetime(
                 year=nanoseconds_datetime.year,
@@ -129,7 +130,7 @@ def get_post_by_id(id):
         post['categories'] = [category_ref.id for category_ref in post_ref.get().get("categories")]
 
         nanoseconds_datetime = post['date_created']
-            
+
         # Convert to standard Python datetime object
         standard_datetime = datetime(
             year=nanoseconds_datetime.year,
@@ -146,9 +147,48 @@ def get_post_by_id(id):
 
         post['author_name'] = author_name.get().get("username")
 
-        print(post)
+        # print(post)
         # this_post.append(post)
-        print(this_post)
+        # print(this_post)
         return post
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/getPostByCategory")
+def get_post_by_category(category):
+    db = firestore.client()
+    try:
+        all_posts = []
+
+        cat_ref = db.collection('categories').document(category)
+        print("cat_ref", cat_ref)
+        cat = cat_ref.get().to_dict()
+        print("cat here", cat)
+        for post in cat["posts"]:
+            data = post.get().to_dict()
+            data["id_author"] = post.get().get("id_author").id
+            data["categories"] = [category_ref.id for category_ref in post.get().get("categories")]
+            nanoseconds_datetime = data['date_created']
+
+            # Convert to standard Python datetime object
+            standard_datetime = datetime(
+                year=nanoseconds_datetime.year,
+                month=nanoseconds_datetime.month,
+                day=nanoseconds_datetime.day,
+                hour=nanoseconds_datetime.hour,
+                minute=nanoseconds_datetime.minute,
+                second=nanoseconds_datetime.second,
+                microsecond=nanoseconds_datetime.nanosecond // 1000,
+
+            )
+            data['date_created'] = standard_datetime
+            author_name = db.collection('users').document(post.get().get('id_author').id)
+
+            data['author_name'] = author_name.get().get("username")
+            print("data", data)
+            all_posts.append(data)
+        print("all_post", all_posts)
+        return all_posts
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
