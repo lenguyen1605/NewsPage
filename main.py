@@ -39,7 +39,6 @@ class User(BaseModel):
     email: str
     password: str
     username: str
-    id_post: List[str]
     # author: False
 
 
@@ -209,6 +208,7 @@ def get_post_by_category(category):
         for post in cat["posts"]:
             data = post.get().to_dict()
             data["id_author"] = post.get().get("id_author").id
+            print("id_author", post.get().get("id_author").id)
             data["categories"] = [category_ref.id for category_ref in post.get().get("categories")]
             nanoseconds_datetime = data['date_created']
 
